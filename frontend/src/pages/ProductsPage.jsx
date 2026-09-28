@@ -1,202 +1,33 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUpRight,
   Check,
-  X,
+  MessageCircle,
+  Search,
   ChevronLeft,
   ChevronRight,
   Eye,
-  MessageCircle,
+  X,
 } from "lucide-react";
-import { SUPERMARKET_PRODUCTS } from "../data/supermarketData";
+import { PRODUCTS,  } from "../components/Products";
 import { getProducts } from "../api/client";
 
-// Corporate Brand Colors
-const PRIMARY = "#C8102E"; // Corporate Red
-const ACCENT = "#F4B400"; // Corporate Yellow
+// Corporate Brand Constants
+const PRIMARY = "#C8102E"; // Brand Red
+const ACCENT = "#F4B400"; // Accent Yellow / Gold
 const DARK = "#111827";
 
 const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=80";
-
-// 1. Eagerly import all product images from src/assets/product (including subdirectories like iftar/)
-const imageModules = import.meta.glob(
-  "../assets/product/**/*.{png,jpg,jpeg,webp,svg,PNG,JPG,JPEG,WEBP,SVG}",
-  { eager: true },
-);
-
-// Product name lookup for clean Malayalam / English provision titles
-const PRODUCT_NAMES = {
-  atta: "Whole Wheat Atta",
-  avil: "Pure White Avil",
-  avilose: "Traditional Avilose Podi",
-  chilly: "Pure Red Chilly Powder",
-  driedchilly: "Sun-Dried Red Chilly",
-  ggpowder: "Green Gram Powder",
-  gingelly: "Pure Gingelly Sesame Oil",
-  gingellyoil: "Pure Gingelly Oil",
-  green: "Selected Green Gram",
-  kadalamavu: "Pure Kadalamavu (Gram Flour)",
-  kchilly: "Kashmiri Chilly Powder",
-  kozhiyada: "Authentic Kozhiyada Snacks",
-  mally: "Pure Coriander Powder (Malli)",
-  pathiri: "Special Roasted Pathiri Podi",
-  pchilly: "Crushed Dried Chilly",
-  puttu: "Premium White Puttu Podi",
-  ragi: "Healthy Ragi Flour",
-  ragiputtu: "Special Ragi Puttu Podi",
-  rmallypowder: "Roasted Mally Powder",
-  sp: "Special Biriyani Spices",
-  srputtupodi: "Steamed Ragi Puttu Podi",
-  swputtu: "Steamed Wheat Puttu Podi",
-  turmeric: "Golden Pure Turmeric Powder",
-  wcoriander: "Whole Coriander Seeds",
-  wheatputtu: "Pure Wheat Puttu Podi",
-};
-
-// Categorization helper
-function getCategory(key) {
-  if (
-    key.includes("chilly") ||
-    key.includes("mally") ||
-    key.includes("turmeric") ||
-    key.includes("coriander") ||
-    key.includes("sp")
-  ) {
-    return "Spices & Powders";
-  }
-  if (key.includes("oil") || key.includes("gingelly")) {
-    return "Edible Oils";
-  }
-  if (
-    key.includes("puttu") ||
-    key.includes("pathiri") ||
-    key.includes("atta") ||
-    key.includes("ragi") ||
-    key.includes("kadala") ||
-    key.includes("ggpowder")
-  ) {
-    return "Flours & Podi";
-  }
-  if (
-    key.includes("avil") ||
-    key.includes("kozhiyada") ||
-    key.includes("green")
-  ) {
-    return "Traditional Provisions";
-  }
-  return "Food Products";
-}
-
-// Helper to format filenames into readable titles
-function formatTitleFromFilename(filepath) {
-  const filename =
-    filepath
-      .split("/")
-      .pop()
-      ?.replace(/\.[^/.]+$/, "") ?? "Product";
-  const cleanKey = filename.toLowerCase().replace(/[-_\s]/g, "");
-  if (PRODUCT_NAMES[cleanKey]) {
-    return PRODUCT_NAMES[cleanKey];
-  }
-  return filename
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-// Map old generic filenames superseded by new specific product additions
-const SUPERSEDED_KEYS = {
-  green: "ggpowder",
-  mally: "rmallypowder",
-  ragiputtu: "srputtupodi",
-  wheatputtu: "swputtu",
-  gingelly: "gingellyoil",
-};
-
-const rawImageEntries = Object.entries(imageModules);
-const existingCleanKeys = new Set(
-  rawImageEntries.map(
-    ([path]) =>
-      path
-        .split("/")
-        .pop()
-        ?.replace(/\.[^/.]+$/, "")
-        .toLowerCase() ?? "",
-  ),
-);
-
-// 2. Transform the glob record into manufactured products
-export const MANUFACTURED_PRODUCTS = rawImageEntries
-  .filter(([path]) => {
-    const cleanKey =
-      path
-        .split("/")
-        .pop()
-        ?.replace(/\.[^/.]+$/, "")
-        .toLowerCase() ?? "";
-    // If this is an older generic duplicate and the new specific version is present, skip the duplicate
-    if (
-      SUPERSEDED_KEYS[cleanKey] &&
-      existingCleanKeys.has(SUPERSEDED_KEYS[cleanKey])
-    ) {
-      return false;
-    }
-    return true;
-  })
-  .map(([path, module], index) => {
-    const name = formatTitleFromFilename(path);
-    const cleanKey =
-      path
-        .split("/")
-        .pop()
-        ?.replace(/\.[^/.]+$/, "")
-        .toLowerCase() ?? "";
-    const category = getCategory(cleanKey);
-
-    // Detect if the product image is inside the iftar folder
-    const isIftar =
-      path.toLowerCase().includes("/iftar/") ||
-      path.toLowerCase().includes("iftar");
-
-    const brand = isIftar ? "IFTAR FOOD INDUSTRIES" : "KOOLATH MILLING COMPANY";
-    const whatsapp = isIftar ? "917510116688" : "917510116699";
-    const phone = isIftar ? "+91 75101 16688" : "+91 75101 16699";
-
-    const description = isIftar
-      ? `High-quality ${name.toLowerCase()} manufactured and packed by Iftar Food Industries under certified hygienic standards.`
-      : `High-quality ${name.toLowerCase()} sourced and processed by Koolath Milling Company under strict hygienic standards.`;
-
-    return {
-      id: `mfg-${index + 1}`,
-      name,
-      brand,
-      category,
-      whatsapp,
-      phone,
-      image: module.default,
-      description,
-      specs: ["100% Pure", "Quality Checked", "Hygienically Packed"],
-      price: "Available on Request",
-      href: "/products",
-    };
-  });
-
-// Unified complete catalog across all divisions
-export const PRODUCTS = [...MANUFACTURED_PRODUCTS, ...SUPERMARKET_PRODUCTS];
-
-export const localImageMap = new Map(
-  MANUFACTURED_PRODUCTS.map((p) => [p.name.toLowerCase(), p.image]),
-);
+  "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80";
 
 const gridVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.05,
+      staggerChildren: 0.06,
+      delayChildren: 0.04,
     },
   },
 };
@@ -210,25 +41,25 @@ const cardVariants = {
     transition: {
       type: "spring",
       stiffness: 280,
-      damping: 22,
+      damping: 24,
     },
   },
   exit: {
     opacity: 0,
     scale: 0.92,
-    y: 15,
-    transition: { duration: 0.2 },
+    y: -15,
+    transition: { duration: 0.2, ease: "easeOut" },
   },
 };
 
-function ProductCard({ product, onView }) {
+function ProductCard({ product, onInquire, onView }) {
   return (
     <motion.article
-      layout
       variants={cardVariants}
+      layout
       whileHover={{ y: -6 }}
       transition={{ type: "spring", stiffness: 350, damping: 25 }}
-      className="group flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:border-red-200 hover:shadow-2xl"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-200/90 bg-white shadow-sm transition-all duration-300 hover:border-red-200 hover:shadow-2xl"
     >
       {/* Product Image & Badges */}
       <div>
@@ -240,12 +71,12 @@ function ProductCard({ product, onView }) {
           <img
             src={product.image}
             alt={product.name}
+            loading="lazy"
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = product.fallback || FALLBACK_IMAGE;
             }}
-            className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
+            className="h-full w-full object-contain transition-transform duration-700 ease-out group-hover:scale-105"
           />
 
           {/* Quick Click-to-View Hover Overlay */}
@@ -256,11 +87,10 @@ function ProductCard({ product, onView }) {
             </span>
           </div>
 
-          {/* Category Badge */}
           <span
-            className="absolute left-3 top-3 rounded-lg px-2.5 py-1 text-[11px] font-bold shadow-xs backdrop-blur-md z-10"
+            className="absolute left-4 top-4 rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider shadow-xs backdrop-blur-md z-10"
             style={{
-              backgroundColor: "rgba(255,255,255,0.92)",
+              backgroundColor: "rgba(255, 255, 255, 0.95)",
               color: PRIMARY,
             }}
           >
@@ -268,127 +98,123 @@ function ProductCard({ product, onView }) {
           </span>
 
           {/* Brand Tag */}
-          <span
-            className="absolute right-3 top-3 rounded-md px-2.5 py-1 text-[9px] font-extrabold tracking-wider uppercase shadow-xs backdrop-blur-xs z-10"
-            style={{
-              backgroundColor:
-                product.brand === "IFTAR FOOD INDUSTRIES"
-                  ? "rgba(200, 16, 46, 0.9)"
-                  : product.brand === "KOOLATH SUPERMARKET"
-                    ? "rgba(5, 150, 105, 0.92)"
-                    : "rgba(0, 0, 0, 0.75)",
-              color:
-                product.brand === "IFTAR FOOD INDUSTRIES"
-                  ? "#FFFFFF"
-                  : product.brand === "KOOLATH SUPERMARKET"
+          {product.brand && (
+            <span
+              className="absolute right-4 top-4 rounded-md px-2.5 py-1 text-[9px] font-extrabold tracking-wider uppercase shadow-xs backdrop-blur-xs z-10"
+              style={{
+                backgroundColor:
+                  product.brand === "IFTAR FOOD INDUSTRIES"
+                    ? "rgba(200, 16, 46, 0.9)"
+                    : product.brand === "KOOLATH SUPERMARKET"
+                      ? "rgba(5, 150, 105, 0.92)"
+                      : "rgba(0, 0, 0, 0.72)",
+                color:
+                  product.brand === "IFTAR FOOD INDUSTRIES" ||
+                  product.brand === "KOOLATH SUPERMARKET"
                     ? "#FFFFFF"
                     : "#FFCA00",
-            }}
-          >
-            {product.brand}
-          </span>
+              }}
+            >
+              {product.brand}
+            </span>
+          )}
 
-          {/* Bottom Accent Line */}
-          <div
-            className="absolute bottom-0 left-0 h-1 w-full origin-left scale-x-0 transition-transform duration-500 ease-out group-hover:scale-x-100"
-            style={{ backgroundColor: ACCENT }}
+          {/* Brand Liquid Accent Strip */}
+          <motion.div
+            className="absolute bottom-0 left-0 h-1.5 w-full origin-left scale-x-0 transition-transform duration-500 ease-out group-hover:scale-x-100"
+            style={{
+              background: `linear-gradient(90deg, ${PRIMARY} 50%, ${ACCENT} 50%)`,
+            }}
           />
         </div>
 
-        <div className="p-5 pb-0">
+        {/* Product Details */}
+        <div className="flex flex-1 flex-col p-6 pb-2">
           <h3
             onClick={() => onView(product)}
-            className="cursor-pointer text-base font-extrabold tracking-tight text-gray-900 transition-colors duration-300 hover:text-red-700 group-hover:text-red-700"
+            className="cursor-pointer text-xl font-bold tracking-tight text-gray-900 transition-colors duration-300 hover:text-red-700 group-hover:text-red-700"
           >
             {product.name}
           </h3>
 
-          <p className="mt-1.5 text-xs leading-relaxed text-gray-500 line-clamp-2">
+          <p className="mt-2.5 flex-1 text-sm leading-6 text-gray-600 line-clamp-2">
             {product.description}
           </p>
 
-          {/* Specifications */}
-          <ul className="mt-4 flex list-none flex-wrap gap-1.5 p-0">
+          {/* Feature Tags */}
+          <div className="mt-4 flex flex-wrap gap-1.5">
             {product.specs.map((spec) => (
-              <li
+              <motion.span
                 key={spec}
-                className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 text-[10px] font-semibold text-gray-700 transition-colors group-hover:bg-red-50/50"
+                whileHover={{ scale: 1.05 }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-100 bg-gray-50/90 px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition-colors group-hover:border-red-100 group-hover:bg-red-50/50"
               >
                 <Check
-                  className="h-3 w-3 shrink-0"
-                  strokeWidth={2.5}
+                  className="h-3 w-3"
+                  strokeWidth={3}
                   style={{ color: PRIMARY }}
-                  aria-hidden="true"
                 />
-                <span>{spec}</span>
-              </li>
+                {spec}
+              </motion.span>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
 
-      {/* Card Footer with Pricing & Action Buttons */}
-      <div className="mt-5 flex items-center justify-between border-t border-gray-100 px-5 py-3.5">
-        <div>
-          <span className="block text-[9px] font-bold uppercase tracking-wider text-gray-400">
-            Pricing
-          </span>
-          <span className="text-xs font-black text-gray-900">
-            {product.price}
-          </span>
-        </div>
+      {/* Pricing & WhatsApp Inquiry */}
+      <div className="border-t border-gray-100 p-6 pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              Pricing
+            </span>
+            <span className="mt-0.5 block text-xs font-bold text-gray-900 sm:text-sm">
+              {product.price}
+            </span>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onView(product)}
-            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs font-bold text-gray-700 shadow-2xs transition-all duration-200 hover:border-red-200 hover:bg-gray-50 active:scale-[0.97]"
-            title="View product image"
-          >
-            <Eye className="h-3.5 w-3.5 text-gray-500" />
-            <span className="hidden sm:inline">View</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onView(product)}
+              className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-2xs transition-all duration-200 hover:border-red-200 hover:bg-gray-50 active:scale-95"
+              title="View image"
+            >
+              <Eye className="h-3.5 w-3.5 text-gray-500" />
+              <span className="hidden sm:inline">View</span>
+            </button>
 
-          <a
-            href={`https://wa.me/${
-              product.whatsapp ||
-              (product.brand === "IFTAR FOOD INDUSTRIES"
-                ? "917510116688"
-                : "917510116699")
-            }?text=${encodeURIComponent(
-              `Hello ${product.brand}, I would like to inquire about "${product.name}". Please share bulk pricing and specifications.`,
-            )}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white shadow-xs transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-[0.97]"
-            style={{ backgroundColor: PRIMARY }}
-            title={`Inquire on WhatsApp (+91 ${
-              product.brand === "IFTAR FOOD INDUSTRIES"
-                ? "75101 16688"
-                : "75101 16699"
-            })`}
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            <span>Inquire</span>
-            <ArrowUpRight className="h-3 w-3" />
-          </a>
+            <motion.button
+              type="button"
+              onClick={() => onInquire(product)}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              className="group/btn relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl px-3.5 py-2 text-xs font-bold text-white shadow-sm transition-all hover:shadow-lg"
+              style={{ backgroundColor: PRIMARY }}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              <span>Inquire</span>
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+            </motion.button>
+          </div>
         </div>
       </div>
     </motion.article>
   );
 }
 
-export default function Products() {
+export default function ProductsPage() {
   const [products, setProducts] = useState(PRODUCTS);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDivision, setSelectedDivision] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeProduct, setActiveProduct] = useState(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const navContainerRef = useRef(null);
 
-  // Fetch from MongoDB backend on mount
+  // Fetch live products from MongoDB backend on mount
   useEffect(() => {
     let isMounted = true;
     getProducts()
@@ -401,7 +227,8 @@ export default function Products() {
               item.image?.startsWith("http") ||
               item.image?.startsWith("/images/")
                 ? item.image
-                : localImageMap.get(item.name.toLowerCase()) ||
+                : (localImageMap &&
+                    localImageMap.get(item.name.toLowerCase())) ||
                   item.image ||
                   item.fallback ||
                   FALLBACK_IMAGE,
@@ -495,12 +322,19 @@ export default function Products() {
     }
   };
 
-  const filteredProducts =
-    selectedCategory === "All"
-      ? divisionProducts
-      : divisionProducts.filter(
-          (product) => product.category === selectedCategory,
-        );
+  const filteredProducts = divisionProducts.filter((product) => {
+    const matchesCategory =
+      selectedCategory === "All" || product.category === selectedCategory;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      product.name.toLowerCase().includes(q) ||
+      (product.brand && product.brand.toLowerCase().includes(q)) ||
+      (product.category && product.category.toLowerCase().includes(q)) ||
+      (product.description && product.description.toLowerCase().includes(q)) ||
+      (product.specs && product.specs.some((s) => s.toLowerCase().includes(q)));
+    return matchesCategory && matchesSearch;
+  });
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -514,7 +348,7 @@ export default function Products() {
     };
   }, [activeProduct]);
 
-  // Keyboard navigation (Escape to close, Left/Right arrows to cycle)
+  // Keyboard navigation for modal
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!activeProduct) return;
@@ -561,173 +395,237 @@ export default function Products() {
     }
   };
 
+  const handleInquire = (product) => {
+    const isIftar =
+      product.brand === "IFTAR FOOD INDUSTRIES" ||
+      product.brand?.toLowerCase().includes("iftar");
+    const targetNumber =
+      product.whatsapp || (isIftar ? "917510116688" : "917510116699");
+    const brandName = isIftar
+      ? "Iftar Food Industries"
+      : product.brand || "Koolath Milling Company";
+    const message = encodeURIComponent(
+      `Hello ${brandName}, I am interested in "${product.name}". Please share product specifications, bulk pricing, and minimum order quantity.`,
+    );
+    window.open(`https://wa.me/${targetNumber}?text=${message}`, "_blank");
+  };
+
   return (
-    <section className="min-h-screen bg-gray-50 px-6 py-20 lg:px-8">
+    <section className="min-h-screen bg-gray-50 px-6 py-16 sm:py-20 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="mx-auto max-w-3xl text-center"
-        >
-          <div className="inline-flex items-center justify-center gap-2">
-            <span
-              className="text-xs font-bold uppercase tracking-[0.25em]"
-              style={{ color: PRIMARY }}
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="max-w-3xl">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2"
             >
-              {selectedDivision === "All"
-                ? "KOOLATH GROUP ENTERPRISES"
-                : selectedDivision}
-            </span>
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: ACCENT }}
-            />
+              <span
+                className="text-xs font-bold uppercase tracking-[0.25em]"
+                style={{ color: PRIMARY }}
+              >
+                {selectedDivision === "All"
+                  ? "KOOLATH GROUP ENTERPRISES"
+                  : selectedDivision}
+              </span>
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+              />
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.05 }}
+              className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl"
+            >
+              Explore Our <span style={{ color: PRIMARY }}>Products</span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="mt-4 max-w-2xl text-base leading-7 text-gray-600"
+            >
+              Discover quality food products, milled provisions, and supermarket
+              essentials crafted with high hygiene standards and dependable
+              freshness.
+            </motion.p>
           </div>
 
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl">
-            Our <span style={{ color: PRIMARY }}>Products</span>
-          </h2>
+          {/* Quick Search */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="relative w-full max-w-xs"
+          >
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products, brands, specs..."
+              className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-xs font-medium text-gray-900 shadow-sm outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-100"
+            />
+          </motion.div>
+        </div>
 
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-gray-600">
-            Carefully sourced wholesale provisions, manufactured staples, and
-            retail supermarket goods across Kerala.
-          </p>
-
-          {/* Division / Brand Switcher */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
-            {DIVISIONS.map((div) => {
-              const isActive = selectedDivision === div.id;
-              return (
-                <button
-                  key={div.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDivision(div.id);
-                    setSelectedCategory("All");
-                  }}
-                  className={`relative rounded-xl px-4 py-2 text-xs font-bold transition-all duration-200 cursor-pointer ${
+        {/* Division / Brand Switcher Pills */}
+        <div className="mt-8 flex flex-wrap items-center gap-2 sm:gap-2.5">
+          {DIVISIONS.map((div) => {
+            const isActive = selectedDivision === div.id;
+            return (
+              <button
+                key={div.id}
+                type="button"
+                onClick={() => {
+                  setSelectedDivision(div.id);
+                  setSelectedCategory("All");
+                }}
+                className={`relative rounded-xl px-4 py-2 text-xs font-bold transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "bg-gray-950 text-white shadow-md scale-105"
+                    : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <span>{div.label}</span>
+                <span
+                  className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${
                     isActive
-                      ? "bg-gray-950 text-white shadow-md scale-105"
-                      : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                      ? "bg-white/20 text-white"
+                      : "bg-gray-100 text-gray-600"
                   }`}
                 >
-                  <span>{div.label}</span>
-                  <span
-                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {div.count}
+                  {div.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Category Tabs with Single-Line Horizontal Scroll and Arrow Buttons */}
+        <div className="relative mt-6 flex w-full items-center justify-start">
+          <motion.button
+            type="button"
+            onClick={() => handleCategoryScroll("left")}
+            disabled={!canScrollLeft}
+            whileHover={{ scale: canScrollLeft ? 1.1 : 1 }}
+            whileTap={{ scale: canScrollLeft ? 0.92 : 1 }}
+            className={`mr-1.5 sm:mr-2 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition-all duration-200 ${
+              !canScrollLeft
+                ? "cursor-not-allowed opacity-25 pointer-events-none"
+                : "hover:border-red-200 hover:text-red-600 hover:shadow-md cursor-pointer active:bg-gray-50"
+            }`}
+            aria-label="Scroll Categories Left"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </motion.button>
+
+          <div
+            ref={navContainerRef}
+            onScroll={checkScrollability}
+            className="flex items-center gap-2 overflow-x-auto px-1 py-2 no-scrollbar scroll-smooth"
+          >
+            {categories.map((category) => {
+              const isActive = selectedCategory === category;
+
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={(e) => selectCategory(category, e.currentTarget)}
+                  className="relative shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors duration-200 focus:outline-none"
+                  style={{
+                    color: isActive ? "#FFFFFF" : DARK,
+                  }}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeProductsPill"
+                      className="absolute inset-0 rounded-full shadow-lg"
+                      style={{
+                        backgroundColor: PRIMARY,
+                        boxShadow: `0 8px 20px -4px rgba(200, 16, 46, 0.45)`,
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 450,
+                        damping: 35,
+                      }}
+                    />
+                  )}
+
+                  {!isActive && (
+                    <div className="absolute inset-0 rounded-full border border-gray-200 bg-white transition-colors duration-200 hover:border-red-200 hover:bg-gray-50" />
+                  )}
+
+                  <span className="relative z-10 flex items-center gap-2">
+                    {category}
+                    {isActive && (
+                      <motion.span
+                        layoutId="activeProdTabDot"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: [0, 1.3, 1] }}
+                        transition={{ duration: 0.3 }}
+                        className="inline-block h-2 w-2 rounded-full ring-2 ring-white/30"
+                        style={{ backgroundColor: ACCENT }}
+                      />
+                    )}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Category Filter with Single-Line Horizontal Scroll and Arrow Buttons */}
-          <div className="relative mx-auto mt-6 flex max-w-4xl items-center justify-center px-1 sm:px-2">
-            <motion.button
-              type="button"
-              onClick={() => handleCategoryScroll("left")}
-              disabled={!canScrollLeft}
-              whileHover={{ scale: canScrollLeft ? 1.1 : 1 }}
-              whileTap={{ scale: canScrollLeft ? 0.92 : 1 }}
-              className={`mr-1.5 sm:mr-2 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition-all duration-200 ${
-                !canScrollLeft
-                  ? "cursor-not-allowed opacity-25 pointer-events-none"
-                  : "hover:border-red-200 hover:text-red-600 hover:shadow-md cursor-pointer active:bg-gray-50"
-              }`}
-              aria-label="Scroll Categories Left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </motion.button>
+          <motion.button
+            type="button"
+            onClick={() => handleCategoryScroll("right")}
+            disabled={!canScrollRight}
+            whileHover={{ scale: canScrollRight ? 1.1 : 1 }}
+            whileTap={{ scale: canScrollRight ? 0.92 : 1 }}
+            className={`ml-1.5 sm:ml-2 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition-all duration-200 ${
+              !canScrollRight
+                ? "cursor-not-allowed opacity-25 pointer-events-none"
+                : "hover:border-red-200 hover:text-red-600 hover:shadow-md cursor-pointer active:bg-gray-50"
+            }`}
+            aria-label="Scroll Categories Right"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </motion.button>
+        </div>
 
-            <div
-              ref={navContainerRef}
-              onScroll={checkScrollability}
-              className="flex items-center gap-2 overflow-x-auto px-1 sm:px-2 py-2 no-scrollbar scroll-smooth"
-            >
-              {categories.map((category) => {
-                const isActive = selectedCategory === category;
-
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={(e) => selectCategory(category, e.currentTarget)}
-                    className="relative shrink-0 whitespace-nowrap rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all duration-200 focus:outline-none"
-                    style={{
-                      color: isActive ? "#FFFFFF" : DARK,
-                    }}
-                  >
-                    {isActive ? (
-                      <motion.div
-                        layoutId="homeProductActiveTab"
-                        className="absolute inset-0 rounded-full shadow-md"
-                        style={{ backgroundColor: PRIMARY }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 450,
-                          damping: 35,
-                        }}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 rounded-full border border-gray-200 bg-white transition-colors hover:border-red-200 hover:bg-gray-50" />
-                    )}
-
-                    <span className="relative z-10 flex items-center gap-2">
-                      {category}
-                      {isActive && (
-                        <span
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: ACCENT }}
-                        />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <motion.button
-              type="button"
-              onClick={() => handleCategoryScroll("right")}
-              disabled={!canScrollRight}
-              whileHover={{ scale: canScrollRight ? 1.1 : 1 }}
-              whileTap={{ scale: canScrollRight ? 0.92 : 1 }}
-              className={`ml-1.5 sm:ml-2 flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition-all duration-200 ${
-                !canScrollRight
-                  ? "cursor-not-allowed opacity-25 pointer-events-none"
-                  : "hover:border-red-200 hover:text-red-600 hover:shadow-md cursor-pointer active:bg-gray-50"
-              }`}
-              aria-label="Scroll Categories Right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </motion.button>
-          </div>
-        </motion.div>
-
-        {/* Product Grid with AnimatePresence */}
+        {/* Product Grid */}
         <motion.div
-          key={selectedCategory}
+          key={selectedDivision + selectedCategory + searchQuery}
           variants={gridVariants}
           initial="hidden"
           animate="visible"
-          className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          className="mt-10 grid items-stretch gap-8 sm:grid-cols-2 lg:grid-cols-3"
         >
           <AnimatePresence mode="popLayout">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onView={setActiveProduct}
-              />
-            ))}
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onInquire={handleInquire}
+                  onView={setActiveProduct}
+                />
+              ))
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="col-span-full py-16 text-center text-gray-500"
+              >
+                No products found matching &ldquo;{searchQuery}&rdquo;.
+              </motion.div>
+            )}
           </AnimatePresence>
         </motion.div>
 
