@@ -1,5 +1,13 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "https://subani.in/api";
+
+const getAuthHeaders = (extra = {}) => {
+  const token = localStorage.getItem("subani_admin_token");
+  return {
+    ...extra,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 /**
  * Fetch products from MongoDB backend
@@ -63,10 +71,10 @@ export async function createProduct(productData) {
   try {
     const response = await fetch(`${API_BASE_URL}/products`, {
       method: "POST",
-      headers: {
+      headers: getAuthHeaders({
         "Content-Type": "application/json",
         Accept: "application/json",
-      },
+      }),
       body: JSON.stringify(productData),
     });
 
@@ -97,9 +105,9 @@ export async function deleteProduct(id) {
   try {
     const response = await fetch(`${API_BASE_URL}/products/${id}`, {
       method: "DELETE",
-      headers: {
+      headers: getAuthHeaders({
         Accept: "application/json",
-      },
+      }),
     });
 
     const data = await response.json();
@@ -175,10 +183,10 @@ export async function createGalleryItem(itemData) {
   try {
     const response = await fetch(`${API_BASE_URL}/gallery`, {
       method: "POST",
-      headers: {
+      headers: getAuthHeaders({
         "Content-Type": "application/json",
         Accept: "application/json",
-      },
+      }),
       body: JSON.stringify(itemData),
     });
 
@@ -209,9 +217,9 @@ export async function deleteGalleryItem(id) {
   try {
     const response = await fetch(`${API_BASE_URL}/gallery/${id}`, {
       method: "DELETE",
-      headers: {
+      headers: getAuthHeaders({
         Accept: "application/json",
-      },
+      }),
     });
 
     const data = await response.json();
@@ -243,6 +251,7 @@ export async function uploadImage(file) {
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: "POST",
+      headers: getAuthHeaders(),
       body: formData,
     });
 

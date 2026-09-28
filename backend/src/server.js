@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
+import jwt from "jsonwebtoken";
 import { connectDB } from "./config/db.js";
 import productRoutes from "./routes/productRoutes.js";
 import galleryRoutes from "./routes/galleryRoutes.js";
@@ -19,6 +20,16 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+    process.env.CLIENT_URL ||
+    "https://subani.in,https://www.subani.in"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_production";
 
 const app = express();
 
@@ -26,8 +37,27 @@ const app = express();
 await connectDB();
 
 // Middleware
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+app.disable("x-powered-by");
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+  }),
+);
+app.use(express.json({ limit: "1mb" }));
+app.use((req, res, next) => {
+  if (isProduction) {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  }
+  next();
+});
 
 // Serve uploaded files statically from backend/uploads
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -41,8 +71,47 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.post("/api/auth/login", (req, res) => {
+  const username = String(req.body?.username ?? "").trim();
+  const password = String(req.body?.password ?? "");
+  const validUsername = process.env.ADMIN_USERNAME || "";
+  const validPassword = process.env.ADMIN_PASSWORD || "";
+
+  if (!validUsername || !validPassword) {
+    return res.status(500).json({
+      success: false,
+      message: "Admin credentials are not configured.",
+    });
+  }
+
+  if (username !== validUsername || password !== validPassword) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid username or password",
+    });
+  }
+
+  const token = jwt.sign({ username: validUsername }, JWT_SECRET, {
+    expiresIn: "8h",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Login successful",
+    token,
+    user: { username: validUsername },
+  });
+});
+
 // Quick seed route (re-populates db on demand)
 app.post("/api/seed", async (req, res) => {
+  if (isProduction) {
+    return res.status(403).json({
+      success: false,
+      message: "Seeding is disabled in production.",
+    });
+  }
+
   try {
     await Product.deleteMany({});
     await GalleryItem.deleteMany({});

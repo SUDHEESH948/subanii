@@ -38,11 +38,19 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 ).replace(/\/$/, "");
 
+const getAuthHeaders = (extra = {}) => {
+  const token = localStorage.getItem("subani_admin_token");
+  return {
+    ...extra,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 const updateProduct = async (id, payload) => {
   try {
     const res = await fetch(`${API_BASE_URL}/products/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
@@ -64,7 +72,7 @@ const updateGalleryItem = async (id, payload) => {
   try {
     const res = await fetch(`${API_BASE_URL}/gallery/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
@@ -262,38 +270,44 @@ export default function Admin() {
   }, [isAuthenticated]);
 
   // Handle Login
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setAuthError("");
     setIsLoggingIn(true);
 
-    setTimeout(() => {
-      // Credentials check (accepts "admin" / "admin123" or "koolath" / "koolath123")
-      const userClean = username.trim().toLowerCase();
-      const passClean = password.trim();
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
+      });
 
-      const validUsers = [
-        "admin",
-        "koolath",
-        "subani",
-        "admin@subani.com",
-        "admin@koolath.com",
-      ];
-      const validPass = ["admin123", "koolath123", "subani123"];
+      const data = await response.json().catch(() => ({}));
 
-      if (validUsers.includes(userClean) && validPass.includes(passClean)) {
-        sessionStorage.setItem("subani_admin_auth", "true");
-        setIsAuthenticated(true);
-        showToast("Welcome to Admin Dashboard!");
-      } else {
-        setAuthError("Invalid username or password. Default: admin / admin123");
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Invalid username or password");
       }
+
+      localStorage.setItem("subani_admin_token", data.token || "");
+      sessionStorage.setItem("subani_admin_auth", "true");
+      setIsAuthenticated(true);
+      showToast("Welcome to Admin Dashboard!");
+    } catch (error) {
+      setAuthError(error.message || "Invalid username or password.");
+    } finally {
       setIsLoggingIn(false);
-    }, 400);
+    }
   };
 
   // Handle Logout
   const handleLogout = () => {
+    localStorage.removeItem("subani_admin_token");
     sessionStorage.removeItem("subani_admin_auth");
     setIsAuthenticated(false);
     setUsername("");

@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import express from "express";
+import jwt from "jsonwebtoken";
 import multer from "multer";
 import { fileURLToPath } from "url";
 
@@ -48,9 +49,34 @@ const upload = multer({
   fileFilter,
 });
 
+const JWT_SECRET = process.env.JWT_SECRET || "change_me_in_production";
+const requireAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+  }
+
+  try {
+    jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
+};
+
 const router = express.Router();
 
-router.post("/", upload.single("image"), (req, res) => {
+router.post("/", requireAuth, upload.single("image"), (req, res) => {
   if (!req.file) {
     return res
       .status(400)
