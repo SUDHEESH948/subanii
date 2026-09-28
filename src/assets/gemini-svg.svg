@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%" fill="none">
+  <!-- Top Red / Pink Segment -->
+  <path
+    d="M 275 105 L 155 225 L 215 285"
+    stroke="#FF3557"
+    stroke-width="58"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Bottom Yellow Segment -->
+  <path
+    d="M 285 215 L 345 275 L 225 395"
+    stroke="#FFBA00"
+    stroke-width="58"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
