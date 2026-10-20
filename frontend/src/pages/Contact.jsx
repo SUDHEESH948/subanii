@@ -17,7 +17,7 @@ const PRIMARY = "#C8102E"; // Corporate Red
 const ACCENT = "#F4B400"; // Corporate Yellow / Gold
 
 const COMPANY_NAME = "IFTAR FOOD INDUSTRIES";
-const COMPANY_EMAIL = "contact@iftar@subani.in";
+const COMPANY_EMAIL = "iftar@subani.in";
 const PHONE_NUMBER = "+91 9605777799";
 const WHATSAPP_NUMBER = "917510116688";
 
