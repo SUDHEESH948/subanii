@@ -438,11 +438,11 @@ export default function About() {
               </a>
 
               <a
-                href="mailto:koolathgroup@gmail.com"
+                href="mailto:contact@koolathgroup.com"
                 className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-semibold text-gray-800 transition hover:bg-gray-50 sm:text-sm"
               >
                 <Mail className="h-3.5 w-3.5" style={{ color: PRIMARY }} />
-                koolathgroup@gmail.com
+                contact@koolathgroup.com
               </a>
 
               <a
@@ -729,7 +729,7 @@ export default function About() {
               }}
             />
 
-            <span>Call Subani: +91 75101 16699</span>
+            <span>Call Subani: +91 7510116677</span>
           </motion.a>
         </motion.div>
       </div>
