@@ -1,5 +1,7 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://subani.in/api";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? "http://localhost:5000/api" : "https://subani.in/api")
+).replace(/\/$/, "");
 
 const getAuthHeaders = (extra = {}) => {
   const token = localStorage.getItem("subani_admin_token");
@@ -240,7 +242,66 @@ export async function deleteGalleryItem(id) {
 }
 
 /**
- * Upload an image file to backend/uploads
+ * Convert an image file directly to a Base64 data URL for direct database storage.
+ * Automatically resizes very large images using canvas to optimize MongoDB document sizes.
+ * @param {File} file
+ * @param {number} maxWidth
+ * @param {number} maxHeight
+ * @param {number} quality
+ * @returns {Promise<string>}
+ */
+export function fileToBase64(file, maxWidth = 1600, maxHeight = 1600, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error("No file selected"));
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Failed to read image file"));
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (typeof dataUrl !== "string") {
+        return reject(new Error("Could not process image"));
+      }
+
+      // Skip resizing for SVGs or already compact images (< 400KB)
+      if (file.type === "image/svg+xml" || file.size < 400 * 1024) {
+        return resolve(dataUrl);
+      }
+
+      const img = new Image();
+      img.onerror = () => resolve(dataUrl); // Fallback to original dataUrl if canvas decoding fails
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxWidth && height <= maxHeight) {
+          return resolve(dataUrl);
+        }
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(dataUrl);
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const outputMime = file.type === "image/png" ? "image/png" : "image/jpeg";
+        resolve(canvas.toDataURL(outputMime, quality));
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Upload an image file to backend (returns base64 data URL for database storage)
  * @param {File} file
  * @returns {Promise<{ success: boolean, imageUrl?: string, filename?: string, path?: string, error?: string }>}
  */
@@ -272,5 +333,52 @@ export async function uploadImage(file) {
       success: false,
       error: error.message,
     };
+  }
+}
+
+/**
+ * Fetch authenticated admin profile
+ */
+export async function getAdminProfile() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: getAuthHeaders({ Accept: "application/json" }),
+    });
+    const data = await response.json();
+    return response.ok && data.success
+      ? { success: true, user: data.user }
+      : { success: false, error: data.message || "Failed to load admin profile" };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update admin credentials (email, username, password) directly in MongoDB
+ */
+export async function updateAdminCredentials(payload) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/update-credentials`, {
+      method: "PUT",
+      headers: getAuthHeaders({
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      }),
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    return response.ok && data.success
+      ? {
+          success: true,
+          message: data.message,
+          token: data.token,
+          user: data.user,
+        }
+      : {
+          success: false,
+          error: data.message || "Failed to update admin credentials",
+        };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
